@@ -10,9 +10,9 @@ from torch.optim import lr_scheduler
 device = torch.device("cuda:0")
 model = TimeSeriesModel(1, F, LATENT_DIM, 1).to(device=device)
 
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 criterion = torch.nn.MSELoss()
-scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.2, patience=10, verbose=True, cooldown=1, min_lr=0.1e-8, eps=1e-08)
+scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=100, verbose=True, cooldown=1, min_lr=0.1e-8, eps=1e-05)
 
 best_score = 0
 X_train, X_test, y_train, y_test = train_data()
@@ -36,5 +36,5 @@ for epoch in pbar:
       validate_loss = criterion(outputs, y_test)
 
     pbar.set_description("{0:.6f}, {1:.6f}".format(train_loss, validate_loss))
-
+    scheduler.step(validate_loss)
     

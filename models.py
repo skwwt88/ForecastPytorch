@@ -15,7 +15,7 @@ class TimeSeriesModel(nn.Module):
         self.hidden_size = hidden_size
         self.seq_length = T
         
-        self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size,
+        self.lstm = nn.GRU(input_size=input_size, hidden_size=hidden_size,
                             num_layers=num_layers, batch_first=True)
         
         self.fc = nn.Linear(hidden_size, num_classes)
@@ -23,11 +23,9 @@ class TimeSeriesModel(nn.Module):
     def forward(self, x):
         h_0 = torch.zeros(
             self.num_layers, x.size(0), self.hidden_size).cuda()
-        c_0 = torch.zeros(
-            self.num_layers, x.size(0), self.hidden_size).cuda()
         
         # Propagate input through LSTM
-        ula, (h_out, _) = self.lstm(x, (h_0, c_0))
+        ula, h_out = self.lstm(x, h_0)
         h_out = h_out.view(-1, self.hidden_size)
         out = self.fc(h_out)
         
