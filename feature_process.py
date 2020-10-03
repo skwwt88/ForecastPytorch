@@ -4,34 +4,28 @@ import pandas as pd
 import numpy as np
 import torch
 
+from sklearn.preprocessing import MinMaxScaler
+
 
 def load_data(input_file: str):
-    df = pd.read_csv(input_file)  
-    return transform_to_time_series(df)
+    df = pd.read_csv(input_file)
+    values = df.iloc[:,1:2].values
+    sc = MinMaxScaler()
+    values = sc.fit_transform(values)
+    
+    return scaling_window(values, T)
 
-def transform_to_time_series(df: pd.DataFrame):
-    inputs_x = []
-    inputs_y = []
-    for index in range(0, len(df)):
-        feature_matrix = np.empty((T, F))
-        feature_matrix[:] = np.nan
+def scaling_window(data, seq_length):
+    x = []
+    y = []
 
-        for t in range(1, T + 1):
-            if index - t < 0:
-                break
+    for i in range(len(data)-seq_length-1):
+        _x = data[i:(i+seq_length)]
+        _y = data[i+seq_length]
+        x.append(_x)
+        y.append(_y)
 
-            feature_matrix[t - 1, 1] = df.iloc[index - t]['temp']
-            feature_matrix[t - 1, 0] = df.iloc[index - t]['load']
-
-        if (True in np.isnan(feature_matrix)):
-            continue
-                        
-        feature_matrix = torch.tensor(feature_matrix)
-
-        inputs_x.append(df.iloc[index]['load'])
-        inputs_y.append(feature_matrix)
-
-    return inputs_x, inputs_y
+    return np.array(x),np.array(y)
 
 if __name__ == "__main__":
     inputs_x, inputs_y = load_data('data/energy.csv')

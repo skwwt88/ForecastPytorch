@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import Dataset
 from sklearn.model_selection import train_test_split
 from feature_process import load_data
-from config import data_file, seed
+from config import data_file, seed, BatchSize
 
 class TimeSeriesDataset(Dataset):
     def __init__(self, inputs_x: list, inputs_y: list):
@@ -18,22 +18,16 @@ class TimeSeriesDataset(Dataset):
 
         return x, y
 
-def train_data_loaders():
+def train_data():
     inputs_x, inputs_y = load_data(data_file)
-    X_train, X_test, y_train, y_test = train_test_split(inputs_x, inputs_y, test_size=0.2, random_state=seed)
-    trainloader = torch.utils.data.DataLoader(TimeSeriesDataset(X_train, y_train), batch_size=16, shuffle=True, num_workers = 8)
-    validateloader = torch.utils.data.DataLoader(TimeSeriesDataset(X_test, y_test), batch_size=16, shuffle=False, num_workers = 8)
+    return train_test_split(inputs_x, inputs_y, test_size=0.2, random_state=seed)
+
+def train_data_loaders(X_train, X_test, y_train, y_test):
+    trainloader = torch.utils.data.DataLoader(TimeSeriesDataset(X_train, y_train), batch_size=BatchSize, shuffle=True, num_workers = 8)
+    validateloader = torch.utils.data.DataLoader(TimeSeriesDataset(X_test, y_test), batch_size=BatchSize, shuffle=False, num_workers = 8)
     return trainloader, validateloader
 
 if __name__ == "__main__":
-    import pandas as pd
-    
-    from feature_process import transform_to_time_series
-    df = pd.read_csv(data_file)  
-    inputs_x, inputs_y = transform_to_time_series(df[0:10])
-    dataset = TimeSeriesDataset(inputs_x, inputs_y)
-    print(dataset[3])
-    print(len(dataset))
-
-    train_data_loaders()
+    X_train, X_test, y_train, y_test = train_data()
+    print(X_train)
 
