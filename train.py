@@ -1,14 +1,14 @@
 import torch
 
 from tqdm import tqdm
-from models import TimeSeriesModel
+from models import GRUModel
 from datasets import train_data
 from config import F, T, LATENT_DIM
 from torch.optim import lr_scheduler
 
 
 device = torch.device("cuda:0")
-model = TimeSeriesModel(1, F, LATENT_DIM, 1).to(device=device)
+model = GRUModel(1, F, LATENT_DIM, 1).to(device=device)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 criterion = torch.nn.MSELoss()

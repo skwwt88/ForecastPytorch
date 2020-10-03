@@ -1,7 +1,7 @@
 import os
 
 data_file = os.path.join('data', 'energy.csv')
-F = 1
+F = 2
 T = 24
 LATENT_DIM = 6
 
