@@ -5,14 +5,14 @@ from models import GRUModel
 from datasets import train_data
 from config import F, T, LATENT_DIM
 from torch.optim import lr_scheduler
-
+from feature_process import latest
 
 device = torch.device("cuda:0")
-model = GRUModel(1, F, LATENT_DIM, 1).to(device=device)
+model = GRUModel(4, F, LATENT_DIM, 1).to(device=device)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 criterion = torch.nn.MSELoss()
-scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=100, verbose=True, cooldown=1, min_lr=0.1e-8, eps=1e-05)
+scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=1000, verbose=True, cooldown=1, min_lr=0.1e-8, eps=1e-05)
 
 best_score = 0
 X_train, X_test, y_train, y_test = train_data()
@@ -37,4 +37,8 @@ for epoch in pbar:
 
     pbar.set_description("{0:.6f}, {1:.6f}".format(train_loss, validate_loss))
     scheduler.step(validate_loss)
+
+with torch.no_grad():
+    outputs = model(torch.tensor(latest()).float().cuda())
+    print(outputs)
     
