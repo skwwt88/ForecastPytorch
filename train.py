@@ -8,7 +8,7 @@ from torch.optim import lr_scheduler
 from feature_process import latest
 
 device = torch.device("cuda:0")
-model = GRUModel(4, F, LATENT_DIM, 1).to(device=device)
+model = GRUModel(2, F, LATENT_DIM, 1).to(device=device)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 criterion = torch.nn.MSELoss()

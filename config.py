@@ -1,6 +1,7 @@
 import os
 
-data_file = os.path.join('data', 'cqhk.csv')
+stockid = 'sh600029'
+
 F = 5
 T = 15
 LATENT_DIM = 7
