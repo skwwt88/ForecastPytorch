@@ -21,7 +21,7 @@ X_test = torch.tensor(X_test).float().cuda()
 y_train = torch.tensor(y_train).float().cuda()
 y_test = torch.tensor(y_test).float().cuda()
 
-pbar = tqdm(range(0, 20000))
+pbar = tqdm(range(0, 8800))
 for epoch in pbar:
     optimizer.zero_grad()
 
