@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 from tqdm import tqdm
+import argparse
 
 from stock_info import stock_kline_day, qfq
 from config import *
@@ -14,3 +15,15 @@ def persist_stock_info():
 
 if __name__ == "__main__":
     persist_stock_info()
+    pass
+else:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-t', help='persist data type. [stock, ...]')
+    args = parser.parse_args()
+
+    switcher = {
+        'stock': persist_stock_info
+    }
+
+    switcher[args]()
+
