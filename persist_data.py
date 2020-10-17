@@ -14,16 +14,13 @@ def persist_stock_info():
         stock_df.to_csv(os.path.join(data_folder, "{0}.csv".format(stock_id)))
 
 if __name__ == "__main__":
-    persist_stock_info()
-    pass
-else:
     parser = argparse.ArgumentParser()
-    parser.add_argument('-t', help='persist data type. [stock, ...]')
+    parser.add_argument('-t', default='stock', help='persist data type. [stock, ...]')
     args = parser.parse_args()
 
-    switcher = {
+    actions = {
         'stock': persist_stock_info
     }
-
-    switcher[args]()
+    print(args.t)
+    actions[args.t]()
 
