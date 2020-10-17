@@ -2,8 +2,8 @@ import requests
 import re
 import pandas as pd
 
-def stock_kline_day(id: str, enrich = None):
-    data_uri = "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol={0}&scale=240&ma=5&datalen=5000".format(id)
+def stock_kline_day(id: str, enrich = None, max_count = 30000):
+    data_uri = "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol={0}&scale=240&ma=5&datalen={1}".format(id, max_count)
     response = requests.get(data_uri)
     stock_df = pd.read_json(response.content)
     stock_df['day'] = stock_df['day'].apply(pd.to_datetime)
