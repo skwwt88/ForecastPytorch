@@ -28,3 +28,31 @@ class TimeSeriesModel_1Step(nn.Module):
         out = self.fc(h_out)
         
         return out
+
+class TimeSeriesModel_NStep(nn.Module):
+    def __init__(self, num_classes, input_size, hidden_size, seq_length, steps, device, num_layers = 1):
+        super(TimeSeriesModel_NStep, self).__init__()
+        
+        self.num_classes = num_classes
+        self.num_layers = num_layers
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.seq_length = seq_length
+        self.device = device
+        self.steps = steps
+        
+        self.gru = nn.GRU(input_size=input_size, hidden_size=hidden_size,
+                            num_layers=num_layers, batch_first=True)
+        
+        self.fc = nn.Linear(hidden_size * steps, num_classes * steps)
+
+    def forward(self, x):
+        h_0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(device=self.device)
+        
+        # Propagate input through LSTM
+        _, h_out = self.gru(x, h_0) 
+        h_out = h_out.view(-1, self.hidden_size)
+        h_out = h_out.repeat((1, self.steps))
+        out = self.fc(h_out)
+        
+        return out

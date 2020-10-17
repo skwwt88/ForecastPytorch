@@ -16,6 +16,19 @@ def scaling_window(data, labels, seq_length):
 
     return np.array(x), np.array(y)
 
+def scaling_window_nstep(data, labels, seq_length, steps):
+    x = []
+    y = []
+
+    for i in range(len(data)-seq_length-1-steps):
+        _x = data[i:(i+seq_length)]
+        _y = labels[i+seq_length:i+seq_length+steps, :]
+        _y = _y.reshape((-1))
+        x.append(_x)
+        y.append(_y)
+
+    return np.array(x), np.array(y)
+
 class BasicDataset(Dataset):
     def __init__(self, inputs_x: list, inputs_y: list):
         self.inputs_x = inputs_x
