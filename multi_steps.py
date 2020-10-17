@@ -15,15 +15,15 @@ from config import *
 
 ### Hyper-Parameter ###
 seed = 1988
-seq_length = 20
+seq_length = 50
 test_size = 0.2
 feature_columns = ['open', 'high', 'low', 'close', 'volume']
 predict_columns = ['high', 'low']
-LATENT_DIM = 4
+LATENT_DIM = 6
 lr = 0.01
 min_lr = 0.1e-8
 patience = 200
-max_epoch = 4000
+max_epoch = 10000
 
 ### Init            ###
 verbose = False
@@ -129,5 +129,5 @@ def predict(model, stock_id):
 
 if __name__ == "__main__":
     model = build_model()
-    model = train(model, 'sh603819')
-    print(predict(model, 'sh603819'))
+    model = train(model, 'sh600029')
+    print(predict(model, 'sh600029'))
