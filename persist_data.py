@@ -7,7 +7,7 @@ from stock_info import stock_kline_day, qfq
 from config import *
 
 def persist_stock_info():
-    pbar_stock_ids = tqdm(stock_ids)
+    pbar_stock_ids = tqdm(default_stock_ids)
     
     for stock_id in pbar_stock_ids:
         stock_df = stock_kline_day(stock_id, qfq)

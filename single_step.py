@@ -26,10 +26,10 @@ patience = 200
 max_epoch = 4000
 
 ### Init            ###
-stock_id = 'sh600029'
+verbose = False
 device = torch.device("cuda:0")
 set_seed(seed)
-model_name = 'single_stock_basic'
+model_name = 'single_step'
 
 ### Feature-Engineering
 def process_features(stock_df):
@@ -57,7 +57,7 @@ def data_to_tensor(X_train, X_test, y_train, y_test):
     y_test = torch.tensor(y_test).float().to(device=device)
     return X_train, X_test, y_train, y_test
 
-def load_train_data():
+def load_train_data(stock_id):
     stock_df = stock_kline_day(stock_id, qfq)
     values, labels = process_features(stock_df)
     inputs_x, inputs_y = to_time_series(values, labels)
@@ -68,20 +68,21 @@ def load_train_data():
 def build_model():
     return TimeSeriesModel_1Step(len(predict_columns), len(feature_columns), LATENT_DIM, seq_length, device).to(device=device)
 
-def get_model_name():
+def get_model_name(stock_id):
     return "{}_{}".format(model_name, stock_id)
 
 ### Train       #########
-def train(model):
+def train(model, stock_id):
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     criterion = torch.nn.MSELoss()
-    scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=patience, verbose=True, cooldown=1, min_lr=min_lr, eps=1e-05)
+    scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=patience, verbose=verbose, cooldown=1, min_lr=min_lr, eps=1e-05)
 
-    X_train, X_test, y_train, y_test = load_train_data()
+    X_train, X_test, y_train, y_test = load_train_data(stock_id)
     min_validate_loss = 100000
     pbar = tqdm(range(0, max_epoch))
-    clean_models(get_model_name(), models_folder)
+    clean_models(get_model_name(stock_id), models_folder)
 
+    model_count = 0
     for epoch in pbar:
         optimizer.zero_grad()
 
@@ -97,22 +98,23 @@ def train(model):
 
         if epoch % 300 == 299:
             if float(validate_loss) < min_validate_loss:
-                save_model(model, get_model_name(), float(validate_loss), models_folder)
+                save_model(model, get_model_name(stock_id), model_count, models_folder, float(validate_loss))
                 min_validate_loss = float(validate_loss)
+                model_count += 1
 
-        pbar.set_description("{0:.6f}, {1:.6f}".format(train_loss, validate_loss))
+        pbar.set_description("{0}:{1:.6f}, {2:.6f}".format(stock_id, train_loss, validate_loss))
         scheduler.step(validate_loss)
     
     return model
 
 ### predict     ########
-def load_pre_trained_model(model):
-    best_model_parameters = find_best_model_file(get_model_name(), models_folder)
+def load_pre_trained_model(model, stock_id):
+    best_model_parameters = find_best_model_file(get_model_name(stock_id), models_folder)
     model.load_state_dict(torch.load(best_model_parameters))
 
     return model
 
-def predict(model):
+def predict(model, stock_id):
     stock_df = stock_kline_day(stock_id, qfq)
     values, _ = process_features(stock_df)
     index = len(values)
@@ -121,21 +123,30 @@ def predict(model):
 
     with torch.no_grad():
         outputs = model(values)
-        print(outputs)
+        return outputs
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-train', dest='train_flag', action='store_true')
-    parser.add_argument('-stockid', default=stock_id, help='stock id.')
+    parser.add_argument('-stockids', nargs='+')
     parser.set_defaults(train_flag=False)
     
     args = parser.parse_args()
+    stockids = default_stock_ids if not args.stockids else args.stockids
 
-    stock_id = args.stockid
-    model = build_model()
-    if args.train_flag:
-        model = train(model)
-    else:
-        model = load_pre_trained_model(model)
+    result = {}
+    for stock_id in stockids:
+        model = build_model()
+        if args.train_flag:
+            model = train(model, stock_id)
+        else:
+            try:
+                model = load_pre_trained_model(model, stock_id)
+            except:
+                model = train(model, stock_id)
 
-    predict(model)
+        stock_predict = predict(model, stock_id)
+        result[stock_id] = stock_predict
+
+    for stock, price in result.items():
+        print("{}: {}".format(stock, price))
