@@ -30,7 +30,7 @@ max_epoch = 100000
 verbose = False
 device = torch.device("cuda:0")
 set_seed(seed)
-n_steps = 15
+n_steps = 3
 model_name = 'multi_{}_step'.format(n_steps)
 
 ### Feature-Engineering
@@ -136,7 +136,7 @@ if __name__ == "__main__":
     parser.set_defaults(train_flag=False)
     
     args = parser.parse_args()
-    stockids = default_stock_ids if not args.stockids else args.stockids
+    stockids = airline_stock_ids if not args.stockids else args.stockids
 
     result = {}
     for stock_id in stockids:
