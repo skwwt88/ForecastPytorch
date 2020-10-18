@@ -1,6 +1,7 @@
 import torch
 from torch.optim import lr_scheduler
 import numpy as np
+import pandas as pd
 import argparse
 
 from tqdm import tqdm
@@ -8,7 +9,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 
 from data_utils import scaling_window_nstep, scaling_window
-from utils import set_seed, save_model, clean_models, find_best_model_file
+from pytorchtools import set_seed, save_model, clean_models, find_best_model_file, EarlyStopping
 from stock_info import stock_kline_day, qfq
 from models_defination import TimeSeriesModel_NStep
 from config import *
@@ -19,18 +20,18 @@ seq_length = 50
 test_size = 0.2
 feature_columns = ['open', 'high', 'low', 'close', 'volume']
 predict_columns = ['high', 'low']
-LATENT_DIM = 6
+LATENT_DIM = 8
 lr = 0.01
-min_lr = 0.1e-8
-patience = 200
-max_epoch = 10000
+min_lr = 0.1e-9
+patience = 280
+max_epoch = 100000
 
 ### Init            ###
 verbose = False
 device = torch.device("cuda:0")
 set_seed(seed)
-model_name = 'multi_step'
-n_steps = 5
+n_steps = 15
+model_name = 'multi_{}_step'.format(n_steps)
 
 ### Feature-Engineering
 def process_features(stock_df):
@@ -79,12 +80,11 @@ def train(model, stock_id):
     criterion = torch.nn.MSELoss()
     scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=patience, verbose=verbose, cooldown=1, min_lr=min_lr, eps=1e-05)
 
+    earlyStop = EarlyStopping(get_model_name(stock_id), models_folder, patience=4)
     X_train, X_test, y_train, y_test = load_train_data(stock_id)
-    min_validate_loss = 100000
     pbar = tqdm(range(0, max_epoch))
     clean_models(get_model_name(stock_id), models_folder)
 
-    model_count = 0
     for epoch in pbar:
         optimizer.zero_grad()
 
@@ -99,10 +99,9 @@ def train(model, stock_id):
             validate_loss = criterion(outputs, y_test)
 
         if epoch % 300 == 299:
-            if float(validate_loss) < min_validate_loss:
-                save_model(model, get_model_name(stock_id), model_count, models_folder, float(validate_loss))
-                min_validate_loss = float(validate_loss)
-                model_count += 1
+            earlyStop(validate_loss, model)
+            if earlyStop.early_stop:
+                break
 
         pbar.set_description("{0}:{1:.6f}, {2:.6f}".format(stock_id, train_loss, validate_loss))
         scheduler.step(validate_loss)
@@ -125,9 +124,34 @@ def predict(model, stock_id):
 
     with torch.no_grad():
         outputs = model(values)
-        return outputs
+        return pd.DataFrame(outputs.reshape(-1, 2).cpu().numpy(), columns=['high', 'low'])
+
+def print_predict(result):
+    pass
 
 if __name__ == "__main__":
-    model = build_model()
-    model = train(model, 'sh600029')
-    print(predict(model, 'sh600029'))
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-train', dest='train_flag', action='store_true')
+    parser.add_argument('-stockids', nargs='+')
+    parser.set_defaults(train_flag=False)
+    
+    args = parser.parse_args()
+    stockids = default_stock_ids if not args.stockids else args.stockids
+
+    result = {}
+    for stock_id in stockids:
+        model = build_model()
+        if args.train_flag:
+            model = train(model, stock_id)
+        else:
+            try:
+                model = load_pre_trained_model(model, stock_id)
+            except:
+                model = train(model, stock_id)
+
+        stock_predict = predict(model, stock_id)
+        result[stock_id] = stock_predict
+
+    for stock, price in result.items():
+        print(stock)
+        print("{}".format(price))

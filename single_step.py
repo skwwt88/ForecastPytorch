@@ -8,7 +8,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 
 from data_utils import scaling_window
-from utils import set_seed, save_model, clean_models, find_best_model_file
+from pytorchtools import set_seed, save_model, clean_models, find_best_model_file
 from stock_info import stock_kline_day, qfq
 from models_defination import TimeSeriesModel_1Step
 from config import *
