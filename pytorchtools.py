@@ -14,6 +14,10 @@ def set_seed(seed):
 def model_name(name, index, score):
      return "{0}_{1:03d}_{2:.6f}.pkl".format(name, index, score)
 
+def model_exist(name, model_folder):
+     files = glob.glob(os.path.join(model_folder, "{}*.pkl".format(name)))
+     return True if files and len(files) > 0 else False
+
 def find_best_model_file(name, model_folder, use_max = True):
      files = glob.glob(os.path.join(model_folder, "{}*.pkl".format(name)))
      files.sort()
