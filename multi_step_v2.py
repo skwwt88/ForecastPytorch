@@ -167,7 +167,7 @@ def load_pre_trained_model(model):
 
     return model
 
-def predict(model, stock_id, predict_steps = train_steps):
+def predict(model, stock_id, predict_steps = train_steps, look_back_days = seq_length):
     data_context = load_data_context()
     model = load_pre_trained_model(model)
     model.eval()
@@ -175,7 +175,7 @@ def predict(model, stock_id, predict_steps = train_steps):
     stock_df = stock_kline_day(stock_id, qfq)
     values, _ = process_features(stock_df, data_context)
     index = len(values)
-    values = np.array([values[index - seq_length:index]])
+    values = np.array([values[index - look_back_days:index]])
     values = torch.tensor(values).float().to(device=device)
 
     with torch.no_grad():
@@ -193,6 +193,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-train', dest='train_flag', action='store_true')
     parser.add_argument('-step', dest='step', type=int, default=train_steps)
+    parser.add_argument('-look_back', dest='look_back', type=int, default=seq_length)
     parser.add_argument('-stockids', nargs='+')
     parser.set_defaults(train_flag=False)
     
@@ -205,7 +206,7 @@ if __name__ == "__main__":
         train(model, stockids)
 
     for stock_id in stockids:
-        result = predict(model, stock_id, args.step)
+        result = predict(model, stock_id, args.step, args.look_back)
         print(stock_id)
         print(result)
 
