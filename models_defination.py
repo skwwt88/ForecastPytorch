@@ -154,6 +154,64 @@ class TimeSeriesModel_NStep_Combined(nn.Module):
 
         return out
 
+class TimeSeriesModel_NSteps_v2(nn.Module):
+    def __init__(self, num_classes, input_size, encoder_settings, decoder_settings, alpha, beta, device):
+        super(TimeSeriesModel_NSteps_v2, self).__init__()
+        
+        self.num_classes = num_classes
+        
+        self.input_size = input_size
+
+        self.encoder_settings = encoder_settings
+        self.decoder_settings = decoder_settings
+        
+        self.device = device
+        
+        self.encoder = nn.GRU(input_size=input_size, hidden_size=encoder_settings["hidden_size"],
+                            num_layers=encoder_settings["layer"], batch_first=True, dropout=encoder_settings["dropout"])
+        self.decoder = nn.GRU(input_size=encoder_settings["hidden_size"] * encoder_settings["layer"], hidden_size=decoder_settings["hidden_size"],
+                            num_layers=decoder_settings["layer"], batch_first=True, dropout=decoder_settings["dropout"])        
+
+        self.es_normalize1 = ES_Normalize(alpha, [1, 2])
+        self.es_normalize2 = ES_Normalize(beta, [1,2])
+        self.es_denormalize1 = ES_DeNormalize(alpha)
+        self.es_denormalize2 = ES_DeNormalize(beta)
+        
+        self.fc_init_hidden_status = nn.Linear(encoder_settings["hidden_size"] * encoder_settings["layer"], decoder_settings["hidden_size"] * decoder_settings["layer"])
+        self.fc = nn.Linear(decoder_settings["hidden_size"], num_classes)
+
+    def forward(self, x, predeict_steps):
+        h_0 = torch.zeros(self.encoder_settings["layer"], x.size(0), self.encoder_settings["hidden_size"]).to(device=self.device)
+        
+        x, st_11 = self.es_normalize1(x)
+        x, st_12 = self.es_normalize2(x)
+
+        # Propagate input through LSTM
+        _, h_out = self.encoder(x, h_0) 
+        h_out = h_out.permute(1,0,2)
+        h_out = h_out.reshape(-1, self.encoder_settings["hidden_size"] * self.encoder_settings["layer"])
+        h_0 = self.fc_init_hidden_status(h_out)
+        h_0 = h_0.reshape(-1, self.decoder_settings["layer"], self.decoder_settings["hidden_size"])
+        h_0 = h_0.permute(1,0,2).contiguous()
+
+        h_out = h_out.repeat((1, predeict_steps))
+        h_out = h_out.reshape(-1, predeict_steps, self.encoder_settings["hidden_size"] * self.encoder_settings["layer"])
+        
+        h_out, _ = self.decoder(h_out, h_0) 
+        h_out = h_out.reshape(-1, self.decoder_settings["hidden_size"])
+        out = self.fc(h_out)
+        out = out.view(-1, predeict_steps, self.num_classes)
+        
+        st_12 = torch.cat((st_12, out), 1)
+        out = self.es_denormalize2(out, st_12)
+
+        st_11 = torch.cat((st_11, out), 1)
+        out = self.es_denormalize1(out, st_11)
+
+        out = out.view(-1, predeict_steps * self.num_classes)
+
+        return out
+
 class ES_Normalize(nn.Module):
     def __init__(self, alpha, columns = None, pre_step = 0):
         super(ES_Normalize, self).__init__()

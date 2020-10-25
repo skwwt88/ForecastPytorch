@@ -13,28 +13,35 @@ from sklearn.model_selection import train_test_split
 from data_utils import scaling_window_nstep, scaling_window
 from pytorchtools import set_seed, save_model, clean_models, find_best_model_file, EarlyStopping
 from stock_info import stock_kline_day, qfq
-from models_defination import TimeSeriesModel_NStep_Combined
+from models_defination import TimeSeriesModel_NSteps_v2
 from config import *
 
 ### Hyper-Parameter ###
 seed = 1989
-seq_length = 503
+seq_length = 50
 test_size = 0.2
 feature_columns = ['open', 'high', 'low', 'close', 'volume']
 predict_columns = ['high', 'low']
-encoder_output = 32
-decoder_output = 64
 lr = 0.001
 min_lr = 0.1e-8
 patience = 100
 max_epoch = 100000
+encoder_settings = {}
+encoder_settings['hidden_size'] = 32
+encoder_settings['layer'] = 3
+encoder_settings['dropout'] = 0.2
+
+decoder_settings = {}
+decoder_settings['hidden_size'] = 64
+decoder_settings['layer'] = 2
+decoder_settings['dropout'] = 0.2
 
 ### Init            ###
 verbose = True
 device = torch.device("cuda:0")
 set_seed(seed)
-n_steps = 5
-model_name = 'combined_multi_{0}_step'.format(n_steps)
+model_name = 'multi_step_v2'
+train_steps = 10
 
 ### Feature-Engineering
 def process_features(stock_df, processors):
@@ -68,7 +75,7 @@ def process_features(stock_df, processors):
 
 def to_time_series(values, labels):
     # return scaling_window(values, labels, seq_length)
-    return scaling_window_nstep(values, labels, seq_length, n_steps)
+    return scaling_window_nstep(values, labels, seq_length, train_steps)
 
 def data_to_tensor(X_train, X_test, y_train, y_test):
     X_train = torch.tensor(X_train).float().to(device=device)
@@ -114,10 +121,7 @@ def load_train_data(stock_ids):
 
 ### Model       #########
 def build_model():
-    return TimeSeriesModel_NStep_Combined(len(predict_columns), len(feature_columns), encoder_output, decoder_output, seq_length, n_steps, 0.2, 0.1, device, 3).to(device=device)
-
-def get_model_name(stock_id):
-    return "{}_{}".format(model_name, stock_id)
+    return TimeSeriesModel_NSteps_v2(len(predict_columns), len(feature_columns), encoder_settings, decoder_settings, 0.2, 0.1, device).to(device=device)
 
 ### Train       #########
 def train(model, stock_ids):
@@ -134,7 +138,7 @@ def train(model, stock_ids):
         optimizer.zero_grad()
         model.train()
         # forward + backward + optimize
-        train_outputs = model(X_train)
+        train_outputs = model(X_train, y_train.shape[1] // len(predict_columns))
 
         train_loss = criterion(train_outputs, y_train)
         train_loss.backward()
@@ -143,7 +147,7 @@ def train(model, stock_ids):
 
         with torch.no_grad():
             model.eval()
-            outputs = model(X_test)
+            outputs = model(X_test, y_test.shape[1] // len(predict_columns))
             validate_loss = criterion(outputs, y_test)
 
         if epoch % 300 == 299:
@@ -163,7 +167,7 @@ def load_pre_trained_model(model):
 
     return model
 
-def predict(model, stock_id):
+def predict(model, stock_id, predict_steps = train_steps):
     data_context = load_data_context()
     model = load_pre_trained_model(model)
     model.eval()
@@ -175,7 +179,7 @@ def predict(model, stock_id):
     values = torch.tensor(values).float().to(device=device)
 
     with torch.no_grad():
-        outputs = model(values)
+        outputs = model(values, predict_steps)
         outputs = pd.DataFrame(outputs.reshape(-1, 2).cpu().numpy(), columns=['high', 'low'])
         for column in outputs.columns:
             sc = data_context[stock_id][column]
@@ -188,6 +192,7 @@ def predict(model, stock_id):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-train', dest='train_flag', action='store_true')
+    parser.add_argument('-step', dest='step', type=int, default=train_steps)
     parser.add_argument('-stockids', nargs='+')
     parser.set_defaults(train_flag=False)
     
@@ -196,12 +201,11 @@ if __name__ == "__main__":
 
     result = {}
     model = build_model()
-    args.train_flag = True
     if args.train_flag:
         train(model, stockids)
 
     for stock_id in stockids:
-        result = predict(model, stock_id)
+        result = predict(model, stock_id, args.step)
         print(stock_id)
         print(result)
 
