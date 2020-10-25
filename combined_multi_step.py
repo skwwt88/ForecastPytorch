@@ -18,13 +18,13 @@ from config import *
 
 ### Hyper-Parameter ###
 seed = 1989
-seq_length = 30
+seq_length = 50
 test_size = 0.2
 feature_columns = ['open', 'high', 'low', 'close', 'volume']
 predict_columns = ['high', 'low']
-encoder_output = 8
-decoder_output = 16
-lr = 0.01
+encoder_output = 32
+decoder_output = 64
+lr = 0.001
 min_lr = 0.1e-8
 patience = 100
 max_epoch = 100000
@@ -33,7 +33,7 @@ max_epoch = 100000
 verbose = True
 device = torch.device("cuda:0")
 set_seed(seed)
-n_steps = 3
+n_steps = 5
 model_name = 'combined_multi_{0}_step'.format(n_steps)
 
 ### Feature-Engineering
@@ -114,7 +114,7 @@ def load_train_data(stock_ids):
 
 ### Model       #########
 def build_model():
-    return TimeSeriesModel_NStep_Combined(len(predict_columns), len(feature_columns), encoder_output, decoder_output, seq_length, n_steps, 0.2, 0.1, device).to(device=device)
+    return TimeSeriesModel_NStep_Combined(len(predict_columns), len(feature_columns), encoder_output, decoder_output, seq_length, n_steps, 0.2, 0.1, device, 3).to(device=device)
 
 def get_model_name(stock_id):
     return "{}_{}".format(model_name, stock_id)
@@ -125,14 +125,14 @@ def train(model, stock_ids):
     criterion = torch.nn.MSELoss()
     scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=patience, verbose=verbose, cooldown=1, min_lr=min_lr, eps=1e-05)
 
-    earlyStop = EarlyStopping(model_name, models_folder, patience=3)
+    earlyStop = EarlyStopping(model_name, models_folder, patience=4)
     X_train, X_test, y_train, y_test = load_train_data(stock_ids)
     pbar = tqdm(range(0, max_epoch))
     clean_models(model_name, models_folder)
 
     for epoch in pbar:
         optimizer.zero_grad()
-
+        model.train()
         # forward + backward + optimize
         train_outputs = model(X_train)
 
@@ -142,6 +142,7 @@ def train(model, stock_ids):
         optimizer.step()
 
         with torch.no_grad():
+            model.eval()
             outputs = model(X_test)
             validate_loss = criterion(outputs, y_test)
 

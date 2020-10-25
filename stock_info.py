@@ -33,6 +33,11 @@ def qfq(stock_df, id: str):
 
     return stock_df
 
+
+def get_split_price():
+    url = "http://market.finance.sina.com.cn/pricehis.php?symbol=sh600900&startdate=2011-08-17&enddate=2011-08-19"
+    response = requests.get(url)
+    print(response.content)
+
 if __name__ == "__main__":
-    print(stock_kline_day('sh600029'))
-    print(stock_kline_day('sh600029', qfq))
+    get_split_price()
