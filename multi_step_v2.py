@@ -44,7 +44,8 @@ model_name = 'multi_step_v2'
 train_steps = 10
 
 ### Feature-Engineering
-def process_features(stock_df, processors):
+def process_features(stock_df):
+    processors = {}
     values_list = []
     for column in feature_columns:
         values = stock_df.loc[:,[column]].values
@@ -71,7 +72,7 @@ def process_features(stock_df, processors):
     labels = np.dstack(labels_list)
     labels = labels.reshape((-1, len(predict_columns)))
 
-    return values, labels
+    return values, labels, processors
 
 def to_time_series(values, labels):
     # return scaling_window(values, labels, seq_length)
@@ -100,18 +101,14 @@ def load_data_context():
 def load_train_data(stock_ids):
     inputs_x_list = []
     inputs_y_list = []
-    data_context = {}
-    for stock_id in stock_ids:
-        if not stock_id in data_context:
-            data_context[stock_id] = {}
 
+    for stock_id in stock_ids:
         stock_df = stock_kline_day(stock_id, qfq)
-        values, labels = process_features(stock_df, data_context[stock_id])
+        values, labels, _ = process_features(stock_df)
         inputs_x, inputs_y = to_time_series(values, labels)
         inputs_x_list.append(inputs_x)
         inputs_y_list.append(inputs_y)
 
-    save_data_context(data_context)
     input_x = np.concatenate(inputs_x_list, axis=0)
     input_y = np.concatenate(inputs_y_list, axis=0)
 
@@ -127,7 +124,7 @@ def build_model():
 def train(model, stock_ids):
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     criterion = torch.nn.MSELoss()
-    scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=patience, verbose=verbose, cooldown=1, min_lr=min_lr, eps=1e-05)
+    scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=patience, verbose=verbose, cooldown=1, min_lr=min_lr, eps=1e-08)
 
     earlyStop = EarlyStopping(model_name, models_folder, patience=4)
     X_train, X_test, y_train, y_test = load_train_data(stock_ids)
@@ -168,12 +165,11 @@ def load_pre_trained_model(model):
     return model
 
 def predict(model, stock_id, predict_steps = train_steps, look_back_days = seq_length):
-    data_context = load_data_context()
     model = load_pre_trained_model(model)
     model.eval()
 
     stock_df = stock_kline_day(stock_id, qfq)
-    values, _ = process_features(stock_df, data_context)
+    values, _, processors = process_features(stock_df)
     index = len(values)
     values = np.array([values[index - look_back_days:index]])
     values = torch.tensor(values).float().to(device=device)
@@ -182,7 +178,7 @@ def predict(model, stock_id, predict_steps = train_steps, look_back_days = seq_l
         outputs = model(values, predict_steps)
         outputs = pd.DataFrame(outputs.reshape(-1, 2).cpu().numpy(), columns=['high', 'low'])
         for column in outputs.columns:
-            sc = data_context[stock_id][column]
+            sc = processors[column]
             values = outputs.loc[:,[column]].values
             values = sc.inverse_transform(values)
             outputs[column] = pd.Series(values.reshape(-1))
@@ -202,6 +198,7 @@ if __name__ == "__main__":
 
     result = {}
     model = build_model()
+    # args.train_flag = True
     if args.train_flag:
         train(model, stockids)
 
