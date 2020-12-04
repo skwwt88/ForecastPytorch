@@ -171,7 +171,7 @@ class TimeSeriesModel_NSteps_v2(nn.Module):
                             num_layers=encoder_settings["layer"], batch_first=True, dropout=encoder_settings["dropout"])
         self.decoder = nn.GRU(input_size=encoder_settings["hidden_size"] * encoder_settings["layer"], hidden_size=decoder_settings["hidden_size"],
                             num_layers=decoder_settings["layer"], batch_first=True, dropout=decoder_settings["dropout"])        
-
+    
         self.es_normalize1 = ES_Normalize(alpha, [1, 2])
         self.es_normalize2 = ES_Normalize(beta, [1,2])
         self.es_denormalize1 = ES_DeNormalize(alpha)
