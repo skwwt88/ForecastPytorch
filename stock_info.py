@@ -40,4 +40,4 @@ def get_split_price():
     print(response.content)
 
 if __name__ == "__main__":
-    get_split_price()
+    print(stock_kline_day('sh600029'))

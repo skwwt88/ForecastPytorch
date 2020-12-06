@@ -18,7 +18,7 @@ from config import *
 
 ### Hyper-Parameter ###
 seed = 1989
-seq_length = 503
+seq_length = 50
 test_size = 0.2
 feature_columns = ['open', 'high', 'low', 'close', 'volume']
 predict_columns = ['high', 'low']
@@ -192,7 +192,7 @@ if __name__ == "__main__":
     parser.set_defaults(train_flag=False)
     
     args = parser.parse_args()
-    stockids = default_stock_ids if not args.stockids else args.stockids
+    stockids = airline_stock_ids if not args.stockids else args.stockids
 
     result = {}
     model = build_model()
